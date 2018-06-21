@@ -105,7 +105,7 @@ best <- function(state, outcome) {
 
 ```
 
-# Ranking Hospitals by outcome in a state
+#Ranking Hospitals by outcome in a state
 
 ```{r}
 rankhospital <- function(state, outcome, num = "best") {
