@@ -1,0 +1,207 @@
+---
+title: "Hospital Compare Website Assignment"
+author: "Donato Scarano"
+date: "21 giugno 2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+
+The data for this assignment come from the Hospital Compare web site (http://hospitalcompare.hhs.gov)
+run by the U.S. Department of Health and Human Services. The purpose of the web site is to provide data and
+information about the quality of care at over 4,000 Medicare-certified hospitals in the U.S. This dataset essentially
+covers all major U.S. hospitals. This dataset is used for a variety of purposes, including determining
+whether hospitals should be fined for not providing high quality care to patients (see http://goo.gl/jAXFX
+for some background on this particular topic).
+The Hospital Compare web site contains a lot of data and we will only look at a small subset for this
+assignment. The zip file for this assignment contains three files
+• outcome-of-care-measures.csv: Contains information about 30-day mortality and readmission rates
+for heart attacks, heart failure, and pneumonia for over 4,000 hospitals.
+• hospital-data.csv: Contains information about each hospital.
+• Hospital_Revised_Flatfiles.pdf: Descriptions of the variables in each file (i.e the code book).
+A description of the variables in each of the files is in the included PDF file named Hospital_Revised_Flatfiles.pdf.
+
+##Execution
+
+Read the outcome data into R via the read.csv function and look at the first few rows.
+
+1. Set working directory
+
+```{r}
+setwd("C:/Users/dscarano/Downloads")
+```
+2. Read the outcome data
+
+```{r}
+outcome <- read.csv("outcome-of-care-measures.csv", colClasses = "character")
+head(outcome)
+```
+
+There are many columns in this dataset.
+you can see the number of rows/columns with the nrow/ncol function:
+
+```{r}
+ncol(outcome) 
+```
+
+In addition, you can see the names of each column by typing:
+
+```{r} 
+names(outcome)
+```
+
+To make a simple histogram of the 30-day death rates from heart attack (column 11 in the outcome dataset)
+
+```{r}
+outcome[, 11] <- as.numeric(outcome[, 11])
+hist(outcome[, 11])
+```
+
+#Finding the Best Hospital in a state
+
+```{r}
+best <- function(state, outcome) {
+        ## Read outcome data
+        data <- read.csv("outcome-of-care-measures.csv")
+        
+        ## Check that state and outcome are valid
+        states <- levels(data[, 7])[data[, 7]]
+        state_flag <- FALSE
+        for (i in 1:length(states)) {
+                if (state == states[i]) {
+                        state_flag <- TRUE
+                }
+        }
+        if (!state_flag) {
+                stop ("invalid state")
+        } 
+        if (!((outcome == "heart attack") | (outcome == "heart failure")
+            | (outcome == "pneumonia"))) {
+                stop ("invalid outcome")
+        }
+        
+        ## Return hospital name in that state with lowest 30-day death rate
+        col <- if (outcome == "heart attack") {
+                11
+        } else if (outcome == "heart failure") {
+                17
+        } else {
+                23
+        }
+        
+        data[, col] <- suppressWarnings(as.numeric(levels(data[, col])[data[, col]]))
+        data[, 2] <- as.character(data[, 2])
+        statedata <- data[grep(state, data$State), ]
+        orderdata <- statedata[order(statedata[, col], statedata[, 2], na.last = NA), ]
+        orderdata[1, 2]
+}
+
+```
+
+# Ranking Hospitals by outcome in a state
+
+```{r}
+rankhospital <- function(state, outcome, num = "best") {
+        ## Read outcome data
+        data <- read.csv("outcome-of-care-measures.csv")
+
+        ## Check that state and outcome are valid
+        states <- levels(data[, 7])[data[, 7]]
+        state_flag <- FALSE
+        for (i in 1:length(states)) {
+                if (state == states[i]) {
+                        state_flag <- TRUE
+                }
+        }
+        if (!state_flag) {
+                stop ("invalid state")
+        } 
+        if (!((outcome == "heart attack") | (outcome == "heart failure")
+              | (outcome == "pneumonia"))) {
+                stop ("invalid outcome")
+        }
+
+        ## Return hospital name in that state with the given rank 30-day death 
+        ## rate
+        col <- if (outcome == "heart attack") {
+                11
+        } else if (outcome == "heart failure") {
+                17
+        } else {
+                23
+        }
+        
+        data[, col] <- suppressWarnings(as.numeric(levels(data[, col])[data[, col]]))
+        data[, 2] <- as.character(data[, 2])
+        statedata <- data[grep(state, data$State), ]
+        orderdata <- statedata[order(statedata[, col], statedata[, 2], na.last = NA), ]
+        if(num == "best") {
+                orderdata[1, 2]
+        } else if(num == "worst") {
+                orderdata[nrow(orderdata), 2]
+        } else{
+                orderdata[num, 2]
+        }
+}
+```
+#Ranking Hospital in all States
+
+
+```{r}
+rankall <- function(outcome, num = "best") {
+        ## Read outcome data
+        data <- read.csv("outcome-of-care-measures.csv")
+        
+        ## Check that outcome is valid
+        if (!((outcome == "heart attack") | (outcome == "heart failure")
+              | (outcome == "pneumonia"))) {
+                stop ("invalid outcome")
+        }
+
+        ## For each state, find the hospital of the given rank
+        col <- if (outcome == "heart attack") {
+                11
+        } else if (outcome == "heart failure") {
+                17
+        } else {
+                23
+        }
+        
+        data[, col] <- suppressWarnings(as.numeric(levels(data[, col])[data[, col]]))
+        data[, 2] <- as.character(data[, 2])
+        
+        # Generate an empty vector that will be filled later, row by row, to 
+        # generate the final output.
+        output <- vector()
+        
+        states <- levels(data[, 7])
+        
+        for(i in 1:length(states)) {
+                statedata <- data[grep(states[i], data$State), ]
+                orderdata <- statedata[order(statedata[, col], statedata[, 2], 
+                                             na.last = NA), ]
+                hospital <- if(num == "best") {
+                        orderdata[1, 2]
+                } else if(num == "worst") {
+                        orderdata[nrow(orderdata), 2]
+                } else{
+                        orderdata[num, 2]
+                }
+                output <- append(output, c(hospital, states[i]))
+        }
+
+        ## Return a data frame with the hospital names and the (abbreviated) 
+        ## state name
+        output <- as.data.frame(matrix(output, length(states), 2, byrow = TRUE))
+        colnames(output) <- c("hospital", "state")
+        rownames(output) <- states
+        
+        output
+}
